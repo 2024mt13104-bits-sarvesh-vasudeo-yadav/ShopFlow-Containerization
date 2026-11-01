@@ -1,0 +1,100 @@
+
+services:
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+    image: shopflow-inventory:1.0
+    container_name: shopflow-inventory
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: 8002
+      DB_PATH: /data/inventory.db
+      LOG_LEVEL: INFO
+    volumes:
+      - inventory_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+    image: shopflow-payment:1.0
+    container_name: shopflow-payment
+    ports:
+      - "8003:8003"
+    environment:
+      PORT: 8003
+      DB_PATH: /data/payment.db
+      LOG_LEVEL: INFO
+    volumes:
+      - payment_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+    image: shopflow-notification:1.0
+    container_name: shopflow-notification
+    ports:
+      - "8004:8004"
+    environment:
+      PORT: 8004
+      DB_PATH: /data/notification.db
+      LOG_LEVEL: INFO
+      NOTIFICATION_FAIL: "false"
+      NOTIFICATION_DELAY_SECONDS: 0
+    volumes:
+      - notification_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  order-service:
+    build:
+      context: ./services/order-service
+    image: shopflow-order:1.0
+    container_name: shopflow-order
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+      DB_PATH: /data/orders.db
+      LOG_LEVEL: INFO
+      INVENTORY_URL: http://inventory-service:8002
+      PAYMENT_URL: http://payment-service:8003
+      NOTIFICATION_URL: http://notification-service:8004
+    volumes:
+      - order_data:/data
+    depends_on:
+      inventory-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  inventory_data:
+  payment_data:
+  notification_data:
+  order_data:
